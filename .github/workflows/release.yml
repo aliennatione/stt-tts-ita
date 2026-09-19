@@ -43,7 +43,7 @@ jobs:
           cp models/ggml-*.bin bundle/models/
           cp models/piper/*.onnx models/piper/*.onnx.json bundle/models/piper/
           cat > bundle/README.txt <<'EOF'
-Bundle stt-tts-ita (Linux x86_64, glibc).
+Bundle stt-tts-ita #(Linux x86_64, glibc).
 Uso: ./stt-tts-ita run video.mp4 -o out --tts-engine piper
 Requisiti: sudo apt-get install -y ffmpeg espeak-ng
 Voci: serena-medium/high, paola-medium, riccardo-x_low.
