@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>stt-tts-ita — Audio &amp; video in italiano, offline</title>
+<meta name="description" content="Trascrizione con timestamp e TTS (dubbing) per audio e video, 100% offline: rileva la lingua in ingresso e usa voci neurali Piper in italiano.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="logo">stt-tts-ita</span>
+    <nav class="nav">
+      <a href="index.html">Presentazione</a>
+      <a href="docs.html">Documentazione</a>
+      <a href="https://github.com/rhasspy/piper/releases" rel="nofollow">Piper</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>Audio &amp; video → trascrizione → TTS, 100% offline</h1>
+    <p>Un unico comando: trascrive l'audio con timestamp, rileva la lingua di
+       ingresso, traduce offline verso la lingua che scegli e rigenera la
+       voce con un motore neurale — per i video, sostituisce direttamente
+       la traccia audio (dubbing).</p>
+    <div class="badges">
+      <span class="badge on">Offline &amp; locale</span>
+      <span class="badge on">Open source</span>
+      <span class="badge on">Voci italiane (femminili e maschili)</span>
+      <span class="badge">Multilingua</span>
+      <span class="badge">Dubbing video</span>
+    </div>
+  </section>
+
+  <h2>Come funziona</h2>
+  <div class="flow">
+    <span class="box">MP4 / MKV / M4A / MP3 / …</span><span class="arrow">→</span>
+    <span class="box">whisper.cpp<br><small>lingua auto</small></span><span class="arrow">→</span>
+    <span class="box">Trascrizione<br><small>con timestamp</small></span><span class="arrow">→</span>
+    <span class="box">Traduzione offline<br><small>whisper / argos</small></span><span class="arrow">→</span>
+    <span class="box">TTS neurale<br><small>Piper / espeak</small></span><span class="arrow">→</span>
+    <span class="box">WAV + SRT + VTT + TXT<br>Video dubbato</span>
+  </div>
+
+  <h2>Perché</h2>
+  <div class="grid">
+    <div class="card"><h3>Niente cloud</h3><p>Tutto gira in locale: nessuna API, nessun caricamento del tuo audio. I dati restano sul tuo computer.</p></div>
+    <div class="card"><h3>Rilevamento lingua</h3><p><code>--lang auto</code> fa riconoscere la lingua dell'audio a whisper; se vuoi forzi con <code>--lang it</code>, <code>en</code>, …</p></div>
+    <div class="card"><h3>Traduzione in uscita</h3><p><code>--translate it|en|es|…</code> traduce la trascrizione offline, poi la voce parla la lingua scelta.</p></div>
+    <div class="card"><h3>Voci italiane Piper</h3><p><b>Serena</b> (media/high, femminile), <b>Paola</b> (femminile) e <b>Riccardo</b> (maschile), selezionabili con <code>--tts-voice</code>.</p></div>
+    <div class="card"><h3>Dubbing video</h3><p>Con un video in ingresso produce automaticamente <code>video.dubbed.mp4</code>: video copiato senza ricodifica, nuovo audio allineato ai timestamp.</p></div>
+    <div class="card"><h3>Zero dipendenze pesanti</h3><p>Orchestrazione in soli moduli stdlib; whisper.cpp, Piper ed espeak-ng girano come binari esterni. Installabile anche su Alpine (musl).</p></div>
+  </div>
+
+  <h2>Quickstart</h2>
+  <pre><code>./stt-tts-ita info                                          <span class="c"># verifica ambiente</span>
+./stt-tts-ita run video.mp4 -o out                          <span class="c"># + dubbing automatico</span>
+./stt-tts-ita run audio.m4a -o out --tts-engine piper --tts-voice it_IT-riccardo-x_low
+./stt-tts-ita --lang auto run film.en.mkv -o out --translate it --translate-engine argos
+./stt-tts-ita transcribe audio.mp3 -o out                   <span class="c"># solo trascrizione</span></code></pre>
+
+  <h2>Output</h2>
+  <table>
+    <tr><th>File</th><th>Contenuto</th></tr>
+    <tr><td><code>*.*.json / .srt / .vtt / .txt</code></td><td>trascrizione (nella lingua di uscita scelta)</td></tr>
+    <tr><td><code>*.tts.wav</code></td><td>audio letto dal TTS (intero)</td></tr>
+    <tr><td><code>*.aligned.wav</code></td><td>TTS per-segmento + silenzi nei gap (<code>--align</code> o dubbing)</td></tr>
+    <tr><td><code>*.dubbed.mp4</code></td><td>video con traccia audio sostituita</td></tr>
+    <tr><td><code>*.manifest.json</code></td><td>riepilogo percorsi/segmenti/lingue</td></tr>
+  </table>
+
+  <h2>Distribuzione</h2>
+  <ul class="steps">
+    <li><b>Zipapp</b> (<code>dist/stt-tts-ita.pyz</code>): basta Python ≥ 3.10, portabile tra Alpine e Debian.</li>
+    <li><b>Binario PyInstaller</b> (<code>dist/stt-tts-ita</code>): autocontenuto, glibc; compilato su Debian 11 (glibc 2.31) per girare su Debian ≥ 11 / Ubuntu ≥ 20.04.</li>
+    <li><b>Bundle Debian</b> (<code>dist/debian/</code>): eseguibile + Piper (binario e librerie) + modelli Whisper e voci italiane, pronto da copiare e usare.</li>
+    <li><b>Docker / rootfs+proot</b>: percorsi documentati per compilare da un container Alpine senza Daemon Docker.</li>
+    <li><b>Traduzione argos</b>: opzionale (Debian/glibc), <code>scripts/setup_argos.sh</code>; per l'inglese basta whisper (<code>--translate en</code>) senza dipendenze aggiuntive.</li>
+  </ul>
+</main>
+
+<footer>
+  <div class="wrap">stt-tts-ita · progetto open source · trascrizione e TTS in italiano, locale e offline.</div>
+</footer>
+</body>
+</html>

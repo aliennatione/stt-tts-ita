@@ -1,0 +1,68 @@
+name: release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-venv python3-pip ffmpeg espeak-ng \
+            git build-essential cmake curl
+
+      - name: Build (setup: whisper.cpp + modello)
+        run: sh scripts/setup.sh
+
+      - name: Build zipapp
+        run: sh scripts/build_zipapp.sh
+
+      - name: Install Piper (binario + voci italiane)
+        run: sh scripts/setup_piper.sh
+
+      - name: Build binary PyInstaller
+        run: sh scripts/build_binary.sh
+
+      - name: Assemble Debian bundle
+        run: |
+          rm -rf bundle && mkdir -p bundle/bin/piper bundle/models/piper
+          cp dist/stt-tts-ita bundle/
+          cp dist/stt-tts-ita.pyz bundle/
+          cp -r bin/piper/. bundle/bin/piper/
+          cp models/ggml-*.bin bundle/models/
+          cp models/piper/*.onnx models/piper/*.onnx.json bundle/models/piper/
+          cat > bundle/README.txt <<'EOF'
+Bundle stt-tts-ita (Linux x86_64, glibc).
+Uso: ./stt-tts-ita run video.mp4 -o out --tts-engine piper
+Requisiti: sudo apt-get install -y ffmpeg espeak-ng
+Voci: serena-medium/high, paola-medium, riccardo-x_low.
+EOF
+          tar -C bundle -czf "stt-tts-ita-${{ github.ref_name }}-linux-x86_64.tar.gz" .
+
+      - name: Upload artifact (bundle)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle
+          path: |
+            stt-tts-ita-*.tar.gz
+            dist/stt-tts-ita.pyz
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            stt-tts-ita-*.tar.gz
+            dist/stt-tts-ita.pyz
+          generate_release_notes: true

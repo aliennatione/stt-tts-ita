@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documentazione — stt-tts-ita</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <span class="logo">stt-tts-ita</span>
+    <nav class="nav">
+      <a href="index.html">Presentazione</a>
+      <a href="docs.html">Documentazione</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <h1>Documentazione</h1>
+
+  <h2>Comandi</h2>
+  <pre><code>stt-tts-ita run file.{\m4a,mp3,wav,ogg,flac,mp4,mkv,mov,webm,avi} -o dir [opzioni]
+stt-tts-ita transcribe file.audio -o dir [--format json srt vtt txt]
+stt-tts-ita tts transcript.json -o dir --tts-engine piper
+stt-tts-ita info</code></pre>
+
+  <h3>Opzioni principali (<code>run</code>)</h3>
+  <table>
+    <tr><th>Opzione</th><th>Effetto</th></tr>
+    <tr><td><code>--lang auto|it|en|…</code></td><td>lingua di trascrizione (default <b>auto</b> = rilevata a runtime)</td></tr>
+    <tr><td><code>--translate LANG</code></td><td>traduce la trascrizione verso la lingua scelta (offline)</td></tr>
+    <tr><td><code>--translate-engine auto|whisper|argos</code></td><td><code>auto</code>: whisper per l'inglese, argos per le altre; <code>whisper</code>: solo → <b>en</b>; <code>argos</code>: qualsiasi coppia (Debian/glibc)</td></tr>
+    <tr><td><code>--tts-engine auto|piper|espeak|kokoro</code></td><td>motore vocale (<code>auto</code> = Kokoro se raggiungibile, altrimenti espeak)</td></tr>
+    <tr><td><code>--tts-voice VOCE</code></td><td>voce: es. <code>it_IT-serena-medium|serena-high|paola-medium|riccardo-x_low</code> (piper), <code>it</code>/<code>en</code>/… (espeak)</td></tr>
+    <tr><td><code>--tts-speed F</code></td><td>velocità di lettura (default 1.0)</td></tr>
+    <tr><td><code>--align</code></td><td>genera anche il WAV allineato ai timestamp dei segmenti</td></tr>
+    <tr><td><code>--dub / --no-dub</code></td><td>sostituisce la traccia audio dei video (di default attivo per input video)</td></tr>
+    <tr><td><code>--no-tts</code></td><td>solo trascrizione (da combinare con <code>--no-dub</code> su video)</td></tr>
+  </table>
+
+  <h2>Rilevamento lingua e traduzione (offline)</h2>
+  <p>Con il modello Whisper multilingua (<code>ggml-small-q5_1.bin</code>) e
+  <code>--lang auto</code> la lingua dell'audio viene rilevata e salvata nei
+  file JSON/SRT. La traduzione di uscita usa due motori locali:</p>
+  <ul>
+    <li><b>whisper</b> (<code>--translate en</code>, engine <code>whisper</code> o <code>auto</code>): ritrascrive con
+      l'opzione <code>-tr</code> di whisper.cpp — nessuna installazione aggiuntiva. Solo verso inglese.</li>
+    <li><b>argos-translate</b> (<code>--translate it|es|fr|…</code>, engine <code>argos</code>): traduzione neurale
+      offline per coppie arbitrarie (es. <code>en → it</code>). Richiede glibc
+      (<code>sh scripts/setup_argos.sh</code>, param. <code>ARGOS_LANG</code>); a runtime è locale.</li>
+  </ul>
+  <pre><code><span class="c"># Trucco: film in inglese → doppiato in italiano (voce femminile o maschile)</span>
+./stt-tts-ita --lang auto run film.en.mkv -o out \
+    --translate it --translate-engine argos \
+    --tts-engine piper --tts-voice it_IT-riccardo-x_low
+<span class="c"># ... o direttamente sottotitoli SRT/VTT in italiano senza TTS:</span>
+./stt-tts-ita --lang auto run film.en.mkv -o out --no-dub --no-tts \
+    --translate it --translate-engine argos</code></pre>
+  <p>Quando <code>--translate</code> è attivo e non specifichi <code>--tts-voice</code>, la voce viene
+  scelta in base alla lingua di destinazione (piper: <code>it → it_IT-serena-medium</code>;
+  espeak: codice lingua).</p>
+
+  <h2>Voci Piper in italiano</h2>
+  <table>
+    <tr><th>Voce</th><th>Genere</th><th>Qualità</th><th>Selezione</th></tr>
+    <tr><td>Serena</td><td>femminile</td><td>medium (bundle) / high</td><td><code>--tts-voice it_IT-serena-medium</code></td></tr>
+    <tr><td>Paola</td><td>femminile</td><td>medium</td><td><code>--tts-voice it_IT-paola-medium</code></td></tr>
+    <tr><td>Riccardo</td><td><b>maschile</b></td><td>x_low</td><td><code>--tts-voice it_IT-riccardo-x_low</code></td></tr>
+  </table>
+  <p>Le voci <code>*.onnx</code> stanno in <code>models/piper/</code> (bundle <code>dist/debian/models/piper</code>)
+  e si aggiornano con <code>sh scripts/setup_piper.sh</code>. Il motore Piper richiede
+  glibc: su Alpine/musl resta espeak-ng (<code>--tts-engine espeak</code>, voce <code>it</code>).</p>
+
+  <h2>Dubbing video</h2>
+  <ol class="steps">
+    <li>Conversione in WAV 16 kHz mono + trascrizione (lingua auto o forzata).</li>
+    <li>TTS per segmento con <code>synthesize_aligned</code>: parlato nei tempi originali + silenzi nei gap.</li>
+    <li>Mux con ffmpeg: video <code>-c:v copy</code> (nessuna ricodifica), audio <code>aac 192k</code>,
+        durata invariata (<code>apad</code> + <code>-t</code>).</li>
+  </ol>
+  <pre><code>./stt-tts-ita run video.mp4 -o out --tts-engine piper   <span class="c"># → out/video.dubbed.mp4</span>
+./stt-tts-ita run video.mp4 -o out --no-dub              <span class="c"># senza dubbing</span></code></pre>
+  <p>Per un video parlato di test (pubblico dominio):</p>
+  <pre><code>./.venv/bin/python -m pip install yt-dlp
+./.venv/bin/python -m yt_dlp -f b "https://commons.wikimedia.org/wiki/File:...webm" -o assets/samples/ita_video.webm</code></pre>
+
+  <h2>Variabili d'ambiente</h2>
+  <table>
+    <tr><th>Variabile</th><th>Default</th><th>Uso</th></tr>
+    <tr><td><code>STT_TTS_ROOT</code></td><td>root progetto / CWD</td><td>root per binari e modelli (bundle)</td></tr>
+    <tr><td><code>STT_TTS_MODEL</code></td><td><code>models/ggml-small-q5_1.bin</code></td><td>modello Whisper</td></tr>
+    <tr><td><code>STT_TTS_WHISPER_CLI</code></td><td><code>bin/whisper-cli</code></td><td>binario whisper.cpp (nel bundle è embedded)</td></tr>
+    <tr><td><code>STT_TTS_PIPER_BIN</code> / <code>_MODELS_DIR</code></td><td><code>bin/piper</code> / <code>models/piper</code></td><td>motore Piper</td></tr>
+    <tr><td><code>STT_TTS_LANG</code></td><td><code>auto</code></td><td>lingua di trascrizione di default</td></tr>
+    <tr><td><code>STT_TTS_ARGOS_CMD</code></td><td><code>argos-translate</code></td><td>CLI del traduttore offline</td></tr>
+    <tr><td><code>STT_TTS_FFMPEG</code> / <code>_THREADS</code> / <code>_ESPEAK</code></td><td><code>ffmpeg</code>, <code>4</code>, <code>espeak-ng</code></td><td>binari esterni / thread</td></tr>
+    <tr><td><code>KOKORO_URL</code></td><td><code>http://localhost:7860</code></td><td>servizio HTTP Kokoro (opzionale)</td></tr>
+  </table>
+
+  <h2>Requisiti a runtime</h2>
+  <ul>
+    <li><code>ffmpeg</code> (conversione WAV 16 kHz, concat, mux)</li>
+    <li><code>espeak-ng</code> (TTS di fallback)</li>
+    <li>modello Whisper in <code>models/</code>; per il bundle <code>dist/debian/</code> tutto è incluso (Piper + voci)</li>
+  </ul>
+
+  <h2>Build &amp; test</h2>
+  <pre><code>sh scripts/setup.sh                        <span class="c"># dipendenze apt + whisper.cpp + modello</span>
+./.venv/bin/python -m unittest discover -s tests -v   <span class="c"># 34 test</span>
+sh scripts/build_zipapp.sh                 <span class="c"># dist/stt-tts-ita.pyz (Python ≥ 3.10)</span>
+sh scripts/build_binary.sh                 <span class="c"># dist/stt-tts-ita (PyInstaller, glibc del build env)</span>
+sh scripts/setup_piper.sh                  <span class="c"># Piper + voci (Debian/glibc)</span>
+sh scripts/setup_argos.sh                  <span class="c"># traduttore offline (Debian/glibc)</span></code></pre>
+  <p><b>Portabilità glibc:</b> il binario PyInstaller eredita la libc dell'ambiente di build.
+  Compilato su Debian 11 (glibc 2.31) gira su Debian ≥ 11 e Ubuntu ≥ 20.04; su Alpine/musl
+  si usa lo zipapp con <code>whisper-cli</code> nativo. Percorsi alternativi senza Daemon Docker:
+  rootfs Debian + proot (vedi <code>scripts/debian_rootfs.py</code>).</p>
+
+  <h2>FAQ</h2>
+  <p><b>Serve Internet?</b> No a runtime: STT, traduzione (whisper/argos) e TTS sono locali.
+  Internet serve solo all'installazione (modelli Whisper/Piper/argos).</p>
+  <p><b>L'audio è più lungo del video?</b> Il dubbing mantiene la durata originale: riempie con
+  silenzio se la lettura è corta e taglia alla durata del video se è lunga.</p>
+  <p><b>Quanto pesa?</b> Modello Whisper small ≈ 190 MB; Piper + voci italiane ≈ 250 MB totali.</p>
+</main>
+
+<footer>
+  <div class="wrap">Documentazione stt-tts-ita · leggi anche <code>README.md</code> e <code>ISTRUZIONI.md</code> nel repo.</div>
+</footer>
+</body>
+</html>

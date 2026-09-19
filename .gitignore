@@ -1,0 +1,28 @@
+# Ambiente locale / build
+.venv/
+bin/
+models/
+output/
+dist/
+build/
+srv/
+
+# Campioni scaricati (rigenerabili con scripts/fetch_test_samples.sh)
+assets/samples/*.wav
+assets/samples/*.mp3
+assets/samples/*.m4a
+assets/samples/*.mp4
+assets/samples/*.webm
+!assets/samples/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Tooling / editor
+.DS_Store
+*.swp
+
+# Sessioni/log locali
+session-*.md
