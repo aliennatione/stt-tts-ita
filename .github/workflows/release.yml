@@ -22,7 +22,7 @@ jobs:
           sudo apt-get install -y python3 python3-venv python3-pip ffmpeg espeak-ng \
             git build-essential cmake curl
 
-      - name: Build (setup: whisper.cpp + modello)
+      - name: Build #(setup: whisper.cpp + modello)
         run: sh scripts/setup.sh
 
       - name: Build zipapp
@@ -50,7 +50,7 @@ Voci: serena-medium/high, paola-medium, riccardo-x_low.
 EOF
           tar -C bundle -czf "stt-tts-ita-${{ github.ref_name }}-linux-x86_64.tar.gz" .
 
-      - name: Upload artifact (bundle)
+      - name: Upload artifact #(bundle)
         uses: actions/upload-artifact@v4
         with:
           name: bundle
